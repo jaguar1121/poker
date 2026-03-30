@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Texas Hold'em Hand Recorder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <h1>Poker Hand Recorder</h1>
+            <p class="subtitle">Log your Texas Hold'em hands logically by street</p>
+        </header>
+
+        <!-- Dynamic Pot Display -->
+        <div class="pot-banner glass-panel"
+            style="position: sticky; top: 1rem; z-index: 100; text-align: center; border-color: var(--accent-green); box-shadow: 0 4px 20px rgba(16,185,129,0.15); margin-bottom: 2rem;">
+            <h2 style="margin: 0; font-size: 1.5rem; color: var(--text-main);">
+                Total Pot: <span id="pot-total-value" style="color: var(--accent-green);">0</span>
+            </h2>
+        </div>
+
+        <form id="hand-recorder-form">
+            <!-- SETUP & PREFLOP -->
+            <section class="glass-panel" id="section-preflop">
+                <h2>Game Context & Preflop</h2>
+                <div class="pot-display"
+                    style="color: var(--accent-green); font-weight: 600; margin-bottom: 1rem; font-size: 1.1rem;">
+                    Initial Pot: <span id="pot-start-preflop">0</span>
+                </div>
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label for="blinds">Blinds (大小盲注)</label>
+                        <input type="text" id="blinds" name="blinds" placeholder="e.g. 1/2 or 0.5/1" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="position">Your Position (位置)</label>
+                        <select id="position" name="position">
+                            <option value="UTG">UTG</option>
+                            <option value="UTG+1">UTG+1</option>
+                            <option value="UTG+2">UTG+2</option>
+                            <option value="LJ">LJ</option>
+                            <option value="HJ">HJ</option>
+                            <option value="CO">CO</option>
+                            <option value="BTN">BTN</option>
+                            <option value="SB">SB</option>
+                            <option value="BB">BB</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="players">Players in Pot (幾人池)</label>
+                        <input type="number" id="players" name="players" min="2" max="10" value="6">
+                    </div>
+                </div>
+
+                <div class="cards-section mt-1">
+                    <h3>Your Hand (手牌)</h3>
+                    <div class="card-selectors" id="my-hand">
+                        <div class="card-picker" data-card-target="hand-1">
+                            <input type="hidden" name="hand1" value="">
+                            <div class="card-display placeholder">Card 1</div>
+                        </div>
+                        <div class="card-picker" data-card-target="hand-2">
+                            <input type="hidden" name="hand2" value="">
+                            <div class="card-display placeholder">Card 2</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions-section mt-1">
+                    <div class="section-header">
+                        <h3>Preflop Actions (翻牌前動作)</h3>
+                    </div>
+                    <div id="action-list-preflop" class="action-list">
+                    </div>
+                </div>
+            </section>
+
+            <!-- FLOP -->
+            <section class="glass-panel hidden" id="section-flop">
+                <h2>Flop (翻牌圈)</h2>
+                <div class="pot-display"
+                    style="color: var(--accent-green); font-weight: 600; margin-bottom: 1rem; font-size: 1.1rem;">
+                    Pot going to Flop: <span id="pot-start-flop">0</span>
+                </div>
+                <div class="cards-section">
+                    <div class="card-selectors">
+                        <div class="card-picker" data-card-target="flop-1">
+                            <input type="hidden" name="flop1" value="">
+                            <div class="card-display placeholder">Flop 1</div>
+                        </div>
+                        <div class="card-picker" data-card-target="flop-2">
+                            <input type="hidden" name="flop2" value="">
+                            <div class="card-display placeholder">Flop 2</div>
+                        </div>
+                        <div class="card-picker" data-card-target="flop-3">
+                            <input type="hidden" name="flop3" value="">
+                            <div class="card-display placeholder">Flop 3</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions-section mt-1">
+                    <div class="section-header">
+                        <h3>Flop Actions (翻牌圈動作)</h3>
+                    </div>
+                    <div id="action-list-flop" class="action-list">
+                    </div>
+                </div>
+            </section>
+
+            <!-- TURN -->
+            <section class="glass-panel hidden" id="section-turn">
+                <h2>Turn (轉牌圈)</h2>
+                <div class="pot-display"
+                    style="color: var(--accent-green); font-weight: 600; margin-bottom: 1rem; font-size: 1.1rem;">
+                    Pot going to Turn: <span id="pot-start-turn">0</span>
+                </div>
+                <div class="cards-section">
+                    <div class="card-selectors">
+                        <div class="card-picker" data-card-target="turn">
+                            <input type="hidden" name="turn" value="">
+                            <div class="card-display placeholder">Turn</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions-section mt-1">
+                    <div class="section-header">
+                        <h3>Turn Actions (轉牌圈動作)</h3>
+                    </div>
+                    <div id="action-list-turn" class="action-list">
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIVER -->
+            <section class="glass-panel hidden" id="section-river">
+                <h2>River (河牌圈)</h2>
+                <div class="pot-display"
+                    style="color: var(--accent-green); font-weight: 600; margin-bottom: 1rem; font-size: 1.1rem;">
+                    Pot going to River: <span id="pot-start-river">0</span>
+                </div>
+                <div class="cards-section">
+                    <div class="card-selectors">
+                        <div class="card-picker" data-card-target="river">
+                            <input type="hidden" name="river" value="">
+                            <div class="card-display placeholder">River</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions-section mt-1">
+                    <div class="section-header">
+                        <h3>River Actions (河牌圈動作)</h3>
+                    </div>
+                    <div id="action-list-river" class="action-list">
+                    </div>
+                </div>
+
+                <!-- ADDED TOGGLE AND EXPORT BUTTON -->
+                <div class="form-actions mt-1" style="display: flex; gap: 1rem; align-items: stretch;">
+                    <select id="export-display-mode"
+                        style="width: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--accent-green); color: var(--accent-green); border-radius: 8px; font-weight: 500; padding: 0 1rem; cursor: pointer;">
+                        <option value="chips">💲 Chips (籌碼數)</option>
+                        <option value="bb">🪙 Big Blinds (大盲數)</option>
+                    </select>
+                    <button type="button" id="btn-export-image" class="btn btn-primary btn-large"
+                        style="background:var(--accent-green); flex: 1; margin: 0;">Export as Image (一鍵匯出戰報) 📸</button>
+                </div>
+            </section>
+        </form>
+    </div>
+
+    <!-- Hidden Export Container designed for graphical Visual Poker Table Simulation -->
+    <div id="export-card-container"
+        style="position: absolute; top: -9999px; left: -9999px; width: 680px; padding: 2.5rem; background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; font-family: 'Inter', sans-serif; border-radius: 24px; box-sizing: border-box;">
+        <div
+            style="text-align: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <h1
+                style="margin: 0; font-size: 2rem; letter-spacing: 1px; color: #38bdf8; background: none; -webkit-text-fill-color: #38bdf8; font-weight: 800; -webkit-background-clip: border-box; background-clip: border-box;">
+                Poker Tracker</h1>
+            <p id="export-context" style="margin: 0.5rem 0 0 0; color: #94a3b8; font-size: 1.1rem;"></p>
+        </div>
+
+        <!-- NEW: Poker Table Simulator -->
+        <div id="export-table-simulator"
+            style="position: relative; width: 600px; height: 350px; margin: 0 auto 2.5rem auto;">
+            <!-- Outer Ring -->
+            <div
+                style="position: absolute; top: 30px; left: 30px; right: 30px; bottom: 30px; background: #1e293b; border-radius: 200px / 120px; box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
+            </div>
+            <!-- Felt -->
+            <div
+                style="position: absolute; top: 45px; left: 45px; right: 45px; bottom: 45px; background: radial-gradient(ellipse at center, #0d9488 0%, #064e3b 100%); border-radius: 180px / 100px; border: 8px solid #0f172a; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);">
+                <!-- Center Info -->
+                <div
+                    style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; width: 320px;">
+                    <div
+                        style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin-bottom: 0.3rem; font-weight: 700; letter-spacing: 2px;">
+                        COMMUNITY CARDS</div>
+                    <div id="export-board-cards"
+                        style="display: flex; gap: 0.4rem; justify-content: center; min-height: 70px;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Players container -->
+            <div id="table-seats-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+            </div>
+        </div>
+
+        <div
+            style="background: rgba(15,23,42,0.5); padding: 1rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; border: 1px solid rgba(16,185,129,0.3);">
+            <h2 style="margin: 0; color: #10b981; font-size: 1.5rem;">Final Pot: <span id="export-final-pot">0</span>
+            </h2>
+        </div>
+
+        <!-- Action History Details (details below) -->
+        <div
+            style="background: rgba(255,255,255,0.03); padding: 1.8rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
+            <h3
+                style="color: #e2e8f0; margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.8rem; font-size: 1.2rem; letter-spacing: 0.5px;">
+                Action History</h3>
+            <div id="export-action-log" style="color: #94a3b8; line-height: 1.7; font-size: 1rem;"></div>
+        </div>
+
+        <div style="text-align: center; margin-top: 2rem; color: #475569; font-size: 0.85rem; font-weight: 500;">
+            Generated by PokerTracker App
+        </div>
+    </div>
+
+    <!-- Modal for Result Image -->
+    <div id="image-result-modal" class="modal">
+        <div class="modal-content glass-panel"
+            style="max-width: 90%; text-align: center; width: 440px; padding: 1.5rem; max-height: 92vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="justify-content: space-between; display: flex; flex-shrink: 0;">
+                <h3 style="margin: 0; font-size: 1.2rem;">Share Hand</h3>
+                <button type="button" class="close-image-modal close-modal" style="position: static;">&times;</button>
+            </div>
+            <div class="modal-body"
+                style="padding-top: 1rem; display: flex; flex-direction: column; overflow: hidden; flex-grow: 1;">
+                <p style="color: #10b981; margin-bottom: 0.5rem; font-size: 0.9rem; flex-shrink: 0;">✅ 戰報產生成功！</p>
+                <p style="color: #94a3b8; margin-bottom: 0.8rem; font-size: 0.8rem; flex-shrink: 0;">
+                    (由於內容豐富，可在下方圖片區塊內上下滑動預覽)</p>
+
+                <div id="image-result-container"
+                    style="width: 100%; border-radius: 12px; overflow-y: auto; overflow-x: hidden; max-height: 55vh; box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.5); margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.1); background: #0f172a;">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.6rem; flex-shrink: 0; margin-top: auto;">
+                    <button type="button" id="btn-download-image" class="btn btn-primary"
+                        style="background:var(--accent-green); width: 100%; font-size: 1.1rem; border-radius: 12px; padding: 0.8rem;">⏬
+                        儲存到照片 (Download)</button>
+                    <button type="button" class="btn close-image-modal"
+                        style="background: transparent; border: 1px solid #475569; color: #cbd5e1; width: 100%; font-size: 1rem; border-radius: 12px; padding: 0.6rem; cursor: pointer;">✕
+                        關閉視窗 (Close)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Card Selection -->
+    <div id="card-modal" class="modal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3>Select Card</h3>
+                <button type="button" class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="suit-selector">
+                    <button type="button" class="suit-btn" data-suit="s" style="color: #cbd5e1;">♠</button>
+                    <button type="button" class="suit-btn" data-suit="h" style="color: #ef4444;">♥</button>
+                    <button type="button" class="suit-btn" data-suit="d" style="color: #3b82f6;">♦</button>
+                    <button type="button" class="suit-btn" data-suit="c" style="color: #10b981;">♣</button>
+                </div>
+                <div class="rank-selector">
+                    <button type="button" class="rank-btn" disabled>A</button>
+                    <button type="button" class="rank-btn" disabled>K</button>
+                    <button type="button" class="rank-btn" disabled>Q</button>
+                    <button type="button" class="rank-btn" disabled>J</button>
+                    <button type="button" class="rank-btn" disabled>T</button>
+                    <button type="button" class="rank-btn" disabled>9</button>
+                    <button type="button" class="rank-btn" disabled>8</button>
+                    <button type="button" class="rank-btn" disabled>7</button>
+                    <button type="button" class="rank-btn" disabled>6</button>
+                    <button type="button" class="rank-btn" disabled>5</button>
+                    <button type="button" class="rank-btn" disabled>4</button>
+                    <button type="button" class="rank-btn" disabled>3</button>
+                    <button type="button" class="rank-btn" disabled>2</button>
+                </div>
+                <p class="modal-hint">Select a suit first, then a rank. Double-click a card to clear it.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=4"></script>
+</body>
+
+</html>
