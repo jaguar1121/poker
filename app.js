@@ -111,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const blindsInput = document.getElementById('blinds')?.value || '';
         const blindMatches = blindsInput.match(/\d+(\.\d+)?/g);
         let playerCommitted = {};
+        let playerTotalInvested = {}; // 新增：用於精準計算 Side Pot 的總投入額跟蹤
         let currentStreetBet = 0;
 
         // 1. 初始化盲注
@@ -121,9 +122,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (blinds.length >= 2) {
                 playerCommitted['SB'] = blinds[blinds.length - 2];
                 playerCommitted['BB'] = blinds[blinds.length - 1];
+                playerTotalInvested['SB'] = blinds[blinds.length - 2];
+                playerTotalInvested['BB'] = blinds[blinds.length - 1];
                 currentStreetBet = blinds[blinds.length - 1];
             } else if (blinds.length === 1) {
                 playerCommitted['BB'] = blinds[0];
+                playerTotalInvested['BB'] = blinds[0];
                 currentStreetBet = blinds[0];
             }
         }
@@ -141,6 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const streets = ['preflop', 'flop', 'turn', 'river'];
         let globalFolded = new Set();
         let globalAllIn = new Set();
+        let skipFurtherActions = false; // 新增：若只剩1人（或0人）可行動，直接停止生成動作輸入框
 
         streets.forEach((street, index) => {
             const isPreflop = (street === 'preflop');
@@ -159,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const orderArray = isPreflop ? preflopOrder : postFlopOrder;
             // 該街真正可以 "被動或主動決定行動" 的名單：不含蓋牌、不含已 All-in 的人
             let active = orderArray.filter(p => !globalFolded.has(p) && !globalAllIn.has(p));
+            if (skipFurtherActions) active = []; // 阻斷幽靈輸入框
             let streetClosed = new Set();
 
             let turnIndex = 0;
@@ -338,6 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         active = active.filter(p => p !== currentPos);
                         if (amt > committed) {
                             pot += (amt - committed);
+                            playerTotalInvested[currentPos] = (playerTotalInvested[currentPos] || 0) + (amt - committed);
                             playerCommitted[currentPos] = amt;
                             if (amt > currentStreetBet) {
                                 currentStreetBet = amt;
@@ -352,6 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 toCall = currentStreetBet - committed;
                                 if (toCall > 0) {
                                     pot += toCall;
+                                    playerTotalInvested[currentPos] = (playerTotalInvested[currentPos] || 0) + toCall;
                                     playerCommitted[currentPos] = currentStreetBet;
                                 }
                                 item.setAttribute('data-computed-amt', currentStreetBet);
@@ -363,6 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             streetClosed.add(currentPos);
                             if (amt > committed) {
                                 pot += (amt - committed);
+                                playerTotalInvested[currentPos] = (playerTotalInvested[currentPos] || 0) + (amt - committed);
                                 playerCommitted[currentPos] = amt;
                                 if (amt > currentStreetBet) {
                                     currentStreetBet = amt; // Update to higher bet
@@ -408,6 +417,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 【完全自動化】若邏輯完畢，且剩下的人 >= 2 (不是無競爭收下底池)，直接導航至下一街！
             const totalInvolved = active.length + globalAllIn.size;
+
+            if (actionComplete) {
+                if (active.length <= 1 && globalAllIn.size >= 1) {
+                    skipFurtherActions = true;
+                }
+            }
+
             if (actionComplete && index < streets.length - 1 && totalInvolved >= 2) {
                 const nextStreet = streets[index + 1];
                 const nextSection = document.getElementById(`section-${nextStreet}`);
@@ -415,7 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     nextSection.classList.remove('hidden');
 
                     const nextActionList = document.getElementById(`action-list-${nextStreet}`);
-                    if (nextActionList && nextActionList.children.length === 0) {
+                    if (nextActionList && nextActionList.children.length === 0 && !skipFurtherActions && active.length >= 2) {
                         createActionRow(nextStreet);
                     }
 
@@ -443,6 +459,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (nextStart) nextStart.textContent = formatPot(pot);
             }
         });
+
+        // -------------------------------------------------------------
+        // Side Pot 精準切分邏輯
+        // -------------------------------------------------------------
+        let eligiblePlayers = [...active, ...Array.from(globalAllIn)]; // 未蓋牌的玩家
+        let uniqueCaps = [...new Set(eligiblePlayers.map(p => playerTotalInvested[p] || 0))].sort((a, b) => a - b);
+        let potsArr = [];
+        let previousCap = 0;
+
+        uniqueCaps.forEach((cap) => {
+            if (cap === 0) return;
+            let potSize = 0;
+            let diff = cap - previousCap;
+            for (let p in playerTotalInvested) {
+                let inv = playerTotalInvested[p];
+                if (inv >= cap) {
+                    potSize += diff;
+                } else if (inv > previousCap) {
+                    potSize += (inv - previousCap);
+                }
+            }
+            if (potSize > 0) potsArr.push(potSize);
+            previousCap = cap;
+        });
+
+        let potDisplayString = formatPot(pot);
+        if (potsArr.length > 1) {
+            let breakdown = potsArr.map((p, i) => i === 0 ? `Main: ${formatPot(p)}` : `Side ${i}: ${formatPot(p)}`).join(' | ');
+            potDisplayString = `${formatPot(pot)} <span style="font-size:0.85rem; font-weight:normal; color:#94a3b8; display:block; margin-top:0.3rem;">(${breakdown})</span>`;
+        }
+
+        if (document.getElementById('pot-total-value')) {
+            document.getElementById('pot-total-value').innerHTML = potDisplayString;
+        }
+
+        const formEl = document.getElementById('hand-recorder-form');
+        if (formEl) {
+            formEl.dataset.potBreakdown = JSON.stringify(potsArr);
+        }
 
         if (needsReCalc) {
             pendingCalculation = true;
@@ -615,7 +670,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             document.getElementById('export-context').textContent = `Blinds: ${blinds}  |  Table: ${players}-Max`;
             // Hero position is now displayed on the table bubble itself
-            document.getElementById('export-final-pot').textContent = formatExportAmount(finalPotRaw);
+
+            let potDataset = document.getElementById('hand-recorder-form').dataset.potBreakdown;
+            let exportPotStr = formatExportAmount(finalPotRaw);
+            if (potDataset) {
+                try {
+                    let potsArr = JSON.parse(potDataset);
+                    if (potsArr.length > 1) {
+                        let bk = potsArr.map((p, i) => i === 0 ? `Main ${formatExportAmount(p)}` : `Side ${i} ${formatExportAmount(p)}`).join(' | ');
+                        exportPotStr = `${formatExportAmount(finalPotRaw)}<br><span style="font-size:0.75rem; font-weight:normal; color:#cbd5e1; display:inline-block; margin-top:0.4rem;">(${bk})</span>`;
+                    }
+                } catch (e) { }
+            }
+            document.getElementById('export-final-pot').innerHTML = exportPotStr;
 
             // Generate seats array based on table size
             function getSeats(n) {
