@@ -347,6 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             playerTotalInvested[currentPos] = (playerTotalInvested[currentPos] || 0) + (amt - committed);
                             playerCommitted[currentPos] = amt;
                             if (amt > currentStreetBet) {
+                                streetClosed.clear(); // This is a raise! Reopen the street for others.
                                 currentStreetBet = amt;
                             }
                         }
@@ -463,7 +464,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // -------------------------------------------------------------
         // Side Pot 精準切分邏輯
         // -------------------------------------------------------------
-        let eligiblePlayers = [...active, ...Array.from(globalAllIn)]; // 未蓋牌的玩家
+        let finalActive = preflopOrder.filter(p => !globalFolded.has(p) && !globalAllIn.has(p));
+        let eligiblePlayers = [...finalActive, ...Array.from(globalAllIn)]; // 未蓋牌的玩家
         let uniqueCaps = [...new Set(eligiblePlayers.map(p => playerTotalInvested[p] || 0))].sort((a, b) => a - b);
         let potsArr = [];
         let previousCap = 0;
@@ -513,6 +515,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------
     // Card Selection Logic (Duplicate Prevention)
     // -------------------------------------------------------------
+    const suitSymbols = { s: '♠', h: '♥', d: '♦', c: '♣' };
+    const suitColors = { s: '#cbd5e1', h: '#ef4444', d: '#3b82f6', c: '#10b981' };
     const cardModal = document.getElementById('card-modal');
     const closeModalBtn = document.querySelector('.close-modal');
     const cardPickers = document.querySelectorAll('.card-picker');
